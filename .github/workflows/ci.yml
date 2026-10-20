@@ -1,0 +1,26 @@
+name: CI
+
+# main and develop are tested by the deploy (deploy.yml); here, the other branches and the pull requests
+on:
+  push:
+    branches-ignore: [main, develop]
+  pull_request:
+
+jobs:
+  build-and-test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 10.0.x
+
+      - name: Restore
+        run: dotnet restore PromoFilterBot.sln
+
+      - name: Build
+        run: dotnet build PromoFilterBot.sln -c Release --no-restore
+
+      - name: Test
+        run: dotnet test PromoFilterBot.sln -c Release --no-build --verbosity normal

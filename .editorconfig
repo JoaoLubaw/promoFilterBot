@@ -1,0 +1,41 @@
+# EditorConfig is awesome: https://EditorConfig.org
+
+# top-most EditorConfig file
+root = true
+
+[*]
+indent_style = space
+indent_size = 4
+end_of_line = crlf
+charset = utf-8
+trim_trailing_whitespace = true
+insert_final_newline = false
+
+# Run in Linux (the VM and the containers)
+[{*.sh,Dockerfile,*.yml,*.yaml}]
+end_of_line = lf
+insert_final_newline = true
+
+[*.{yml,yaml}]
+indent_size = 2
+
+[*.{cs,vb}]
+csharp_prefer_braces = true
+
+csharp_indent_case_contents = true
+csharp_indent_labels = flush_left
+csharp_indent_block_contents = true
+csharp_indent_switch_labels = true
+csharp_new_line_between_query_expression_clauses = true:suggestion
+# Braces on the same line, as in the code of rast-core
+csharp_new_line_before_open_brace = none
+csharp_new_line_before_else = true
+csharp_new_line_before_catch = true
+csharp_new_line_before_finally = true
+
+dotnet_sort_system_directives_first = true
+dotnet_separate_import_directive_groups = true
+
+# EF migrations are generated code
+[**/Migrations/*.cs]
+generated_code = true

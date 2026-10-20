@@ -1,0 +1,66 @@
+# The VM is small and shared with other apps: each container has a memory cap, and the logs of Docker rotate (the app
+# also keeps its own in the logs volume)
+x-logging: &logging
+    driver: json-file
+    options:
+        max-size: "10m"
+        max-file: "3"
+
+services:
+    app:
+        image: ${PROMOFILTERBOT_IMAGE:-ghcr.io/joaolubaw/promofilterbot:latest}
+        build: ./
+        restart: unless-stopped
+        container_name: promofilterbot
+        mem_limit: 400m
+        logging: *logging
+        depends_on:
+            db:
+                condition: service_healthy
+        environment:
+            DOTNET_ENVIRONMENT: ${DOTNET_ENVIRONMENT:-Production}
+            ConnectionStrings__PromoFilterBotPostgres: Host=db;Port=5432;Database=${POSTGRES_DB:-promofilterbot};Username=${POSTGRES_USER:-promofilterbot};Password=${POSTGRES_PASSWORD}
+            General__AdminChatId: ${ADMIN_CHAT_ID:-0}
+            General__TimeZone: ${TIME_ZONE:-America/Sao_Paulo}
+            Bot__Token: ${BOT_TOKEN}
+            Reader__Enabled: ${READER_ENABLED:-true}
+            Reader__ApiId: ${TELEGRAM_API_ID:-0}
+            Reader__ApiHash: ${TELEGRAM_API_HASH}
+            Reader__PhoneNumber: ${TELEGRAM_PHONE_NUMBER}
+        volumes:
+            - session:/App/session
+            - logs:/App/logs
+        networks:
+            - compose_net
+
+    # No published ports: the database is only reachable inside the network of the compose
+    db:
+        image: postgres:17
+        restart: unless-stopped
+        container_name: promofilterbot-db
+        mem_limit: 256m
+        logging: *logging
+        # Small database, few connections: a small memory footprint
+        command: ["postgres", "-c", "shared_buffers=64MB", "-c", "max_connections=20", "-c", "work_mem=4MB"]
+        environment:
+            POSTGRES_USER: ${POSTGRES_USER:-promofilterbot}
+            POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Defina POSTGRES_PASSWORD no .env}
+            POSTGRES_DB: ${POSTGRES_DB:-promofilterbot}
+        volumes:
+            - pgdata:/var/lib/postgresql/data
+        healthcheck:
+            test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+            interval: 5s
+            timeout: 5s
+            retries: 10
+            start_period: 10s
+        networks:
+            - compose_net
+
+volumes:
+    session:
+    pgdata:
+    logs:
+
+networks:
+    compose_net:

@@ -55,3 +55,26 @@ CodeCoverage/
 *.VisualState.xml
 TestResult.xml
 nunit-*.xml
+
+# App Settings (local secrets go in appsettings.Development.json or in the .env)
+appsettings.*.json
+
+# Session of the reader account: it is worth the login of the account
+session/
+*.session
+*.state
+
+# Runtime data
+backups/
+logs/
+
+# IDEs
+.vs/
+.vscode/
+.idea/
+*.user
+
+# Claude Code — personal settings
+.claude/settings.local.json
+
+.claude/.temp/

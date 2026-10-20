@@ -1,0 +1,24 @@
+/*
+ * File: NotificationFeedback.cs
+ * Project: Models
+ * Create Date: Tuesday, 20th October 2026
+ * Author: João Lubawaski (joaolubawaski@gmail.com)
+ * -----
+ * Last Modified: Tuesday, 20th October 2026 4:30:00 pm
+ * Modified by: João Lubawaski (joaolubawaski@gmail.com)
+ * -----
+ * Copyright (c) 2026 João Lubawaski
+ * ----
+ * HISTORY:
+ * Date      	By	Comments
+ * ----------	---	---------------------------------------------------------
+ */
+
+namespace PromoFilterBot.Domain.Models;
+
+public enum NotificationFeedback {
+    /// <summary>
+    /// "Não era isso": the offer did not match what the user wanted.
+    /// </summary>
+    NotRelevant = 1
+}

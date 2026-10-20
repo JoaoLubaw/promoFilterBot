@@ -1,0 +1,17 @@
+**/bin/
+**/obj/
+**/logs/
+**/session/
+.git/
+.github/
+.vs/
+.vscode/
+.idea/
+.claude/
+backups/
+tests/
+**/*.user
+.env
+.env.*
+!.env.example
+**/appsettings.*.json

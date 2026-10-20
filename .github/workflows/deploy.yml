@@ -1,0 +1,172 @@
+name: Deploy
+
+# Tests, publishes the image in the GitHub Container Registry (linux/amd64 and linux/arm64) and deploys it over SSH to
+# the VM, where the .env lives. main and develop go to the same server, as in .ei: there is one bot and one reader
+# account, so there is one environment
+on:
+  push:
+    branches: [main, develop]
+    paths:
+      - "src/**"
+      - "tests/**"
+      - "PromoFilterBot.sln"
+      - "Dockerfile"
+      - ".dockerignore"
+      - "docker-compose.yml"
+      - "scripts/**"
+      - ".github/workflows/deploy.yml"
+  workflow_dispatch:
+
+# One deploy at a time: a second push waits for the first one to finish
+concurrency:
+  group: deploy-production
+  cancel-in-progress: false
+
+env:
+  REGISTRY: ghcr.io
+  IMAGE_NAME: joaolubaw/promofilterbot
+
+jobs:
+  test:
+    name: Build & Test
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 10.0.x
+
+      - name: Restore
+        run: dotnet restore PromoFilterBot.sln
+
+      - name: Build
+        run: dotnet build PromoFilterBot.sln -c Release --no-restore
+
+      - name: Test
+        run: dotnet test PromoFilterBot.sln -c Release --no-build
+
+  build-and-push:
+    name: Build & Push Docker Image
+    runs-on: ubuntu-latest
+    needs: test
+    permissions:
+      contents: read
+      packages: write
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      # The final stage runs a command in the image of the target platform
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v3
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Extract Docker metadata
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
+          tags: |
+            type=ref,event=branch
+            type=sha,prefix=sha-,format=long
+            type=raw,value=latest,enable=${{ github.ref == 'refs/heads/main' }}
+
+      - name: Build & Push
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          push: true
+          platforms: linux/amd64,linux/arm64
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+  deploy:
+    name: Deploy to Server
+    runs-on: ubuntu-latest
+    needs: build-and-push
+    environment:
+      name: production
+    permissions:
+      contents: read
+      packages: read
+
+    steps:
+      - name: Checkout (for docker-compose.yml and scripts)
+        uses: actions/checkout@v4
+
+      # The server runs the compose and the scripts of the repository: they go with every deploy (the .env stays)
+      - name: Copy compose and scripts
+        uses: appleboy/scp-action@v0.1.7
+        with:
+          host: ${{ secrets.SSH_HOST }}
+          username: ${{ secrets.SSH_USER }}
+          key: ${{ secrets.SSH_PRIVATE_KEY }}
+          port: ${{ secrets.SSH_PORT || 22 }}
+          source: "docker-compose.yml,scripts/"
+          target: ${{ secrets.DEPLOY_DIR || '/opt/promofilterbot' }}
+          overwrite: true
+
+      - name: Deploy via SSH
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.SSH_HOST }}
+          username: ${{ secrets.SSH_USER }}
+          key: ${{ secrets.SSH_PRIVATE_KEY }}
+          port: ${{ secrets.SSH_PORT || 22 }}
+          script: |
+            set -e
+
+            DEPLOY_DIR="${{ secrets.DEPLOY_DIR || '/opt/promofilterbot' }}"
+            IMAGE="${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:sha-${{ github.sha }}"
+
+            echo ">>> Deploying ${{ github.ref_name }} — $IMAGE"
+
+            cd "$DEPLOY_DIR"
+
+            if [ ! -f .env ]; then
+              echo "There is no $DEPLOY_DIR/.env: copy .env.example to the server and fill it in"
+              exit 1
+            fi
+
+            chmod +x scripts/*.sh
+
+            echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u ${{ github.actor }} --password-stdin
+            docker pull "$IMAGE"
+            docker logout ghcr.io
+
+            # The image deployed is written in the .env, so a manual docker compose (restart, --login) uses the same one
+            sed -i -e '$a\' .env
+            sed -i '/^PROMOFILTERBOT_IMAGE=/d' .env
+            echo "PROMOFILTERBOT_IMAGE=$IMAGE" >> .env
+
+            docker compose up -d --no-build --remove-orphans
+
+            # Clean up dangling images
+            docker image prune -f
+
+            # A wrong .env (no BOT_TOKEN, wrong password) makes the app stop at once. The logs of the app are not printed:
+            # the logs of the Actions of a public repository are public, and they have chat ids and the reader account
+            sleep 15
+            docker compose ps
+
+            if [ "$(docker inspect -f '{{.State.Status}}' promofilterbot)" != "running" ]; then
+              echo ">>> The app is not running: on the VM, docker compose logs app"
+              exit 1
+            fi
+
+            echo ">>> Deploy complete — $IMAGE"

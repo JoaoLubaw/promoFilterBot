@@ -1,0 +1,5 @@
+# Run in Linux (the VM and the containers), so they keep LF in any checkout
+*.sh text eol=lf
+Dockerfile text eol=lf
+*.yml text eol=lf
+*.yaml text eol=lf

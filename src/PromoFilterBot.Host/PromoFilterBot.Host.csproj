@@ -1,0 +1,30 @@
+<Project Sdk="Microsoft.NET.Sdk.Worker">
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <RootNamespace>PromoFilterBot.Host</RootNamespace>
+    <Version>1.0.0.0</Version>
+    <Product>PromoFilterBot</Product>
+    <Copyright>(c) 2026 João Lubawaski</Copyright>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <GenerateDocumentationFile>true</GenerateDocumentationFile>
+    <NoWarn>$(NoWarn);1573;1591</NoWarn>
+    <UserSecretsId>dotnet-PromoFilterBot.Host-ede469e6-277b-4bce-8323-7a852e689e18</UserSecretsId>
+    <!-- Workstation GC, without the background one: less memory, enough for a worker on a small shared VM -->
+    <ServerGarbageCollection>false</ServerGarbageCollection>
+    <ConcurrentGarbageCollection>false</ConcurrentGarbageCollection>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.Extensions.Hosting" Version="10.0.13" />
+    <PackageReference Include="Serilog.Extensions.Hosting" Version="10.0.0" />
+    <PackageReference Include="Serilog.Settings.Configuration" Version="10.0.1" />
+    <PackageReference Include="Serilog.Sinks.Console" Version="6.1.1" />
+    <PackageReference Include="Serilog.Sinks.File" Version="7.0.0" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\PromoFilterBot.Bot\PromoFilterBot.Bot.csproj" />
+    <ProjectReference Include="..\PromoFilterBot.Reader\PromoFilterBot.Reader.csproj" />
+  </ItemGroup>
+</Project>
