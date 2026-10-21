@@ -19,7 +19,8 @@ services:
                 condition: service_healthy
         environment:
             DOTNET_ENVIRONMENT: ${DOTNET_ENVIRONMENT:-Production}
-            ConnectionStrings__PromoFilterBotPostgres: Host=db;Port=5432;Database=${POSTGRES_DB:-promofilterbot};Username=${POSTGRES_USER:-promofilterbot};Password=${POSTGRES_PASSWORD}
+            # GSS Encryption Mode=Disable: without it Npgsql looks for Kerberos (libgssapi_krb5), which the image does not have
+            ConnectionStrings__PromoFilterBotPostgres: Host=db;Port=5432;Database=${POSTGRES_DB:-promofilterbot};Username=${POSTGRES_USER:-promofilterbot};Password=${POSTGRES_PASSWORD};GSS Encryption Mode=Disable
             General__AdminChatId: ${ADMIN_CHAT_ID:-0}
             General__TimeZone: ${TIME_ZONE:-America/Sao_Paulo}
             Bot__Token: ${BOT_TOKEN}

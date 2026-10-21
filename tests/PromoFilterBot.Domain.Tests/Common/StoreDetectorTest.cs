@@ -27,6 +27,10 @@ public class StoreDetectorTest {
     [InlineData("https://www.magazineluiza.com.br/produto/p/abc123def/", "magalu")]
     [InlineData("https://www.kabum.com.br/produto/123", "kabum")]
     [InlineData("https://pt.aliexpress.com/item/100.html", "aliexpress")]
+    [InlineData("https://meli.la/1iHTEvw", "mercadolivre")]
+    [InlineData("https://amzlink.to/az0oRojhBySYt", "amazon")]
+    [InlineData("https://shope.ee/abc", "shopee")]
+    [InlineData("https://kbm.vc/abc", "kabum")]
     public void FromLink_ShouldFindTheStore_ByTheHost(string link, string store) {
         Assert.Equal(store, StoreDetector.FromLink(link));
     }

@@ -1,5 +1,5 @@
-# Builder: runs on the platform of the build machine and compiles for the target one (linux/amd64, as the free EC2 of
-# AWS, or linux/arm64, as Graviton), so a multi-arch image needs no emulation to compile
+# Builder: runs on the platform of the build machine and compiles for the target one (linux/arm64, as the Ampere VMs of
+# Oracle Cloud, or linux/amd64), so a multi-arch image needs no emulation to compile
 FROM --platform=$BUILDPLATFORM mcr.microsoft.com/dotnet/sdk:10.0 AS builder
 ARG TARGETARCH
 ARG DOTNET_CONFIGURATION=Release

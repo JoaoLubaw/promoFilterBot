@@ -197,9 +197,9 @@ Set `Reader:Enabled` to `false` to work on the bot without the reader account.
 
 ## Deploy on a VM
 
-Two containers (app and PostgreSQL) via docker compose, on the same free AWS EC2 as .ei, with no inbound port: the bot
-uses long polling and the database is only reachable inside the network of the compose. The image is multi-arch
-(`linux/amd64` for the t2/t3.micro, `linux/arm64` for Graviton). Each container has a memory cap (app 400 MB, database
+Two containers (app and PostgreSQL) via docker compose, on the same free VM as .ei (Oracle Cloud Always Free), with no
+inbound port: the bot uses long polling and the database is only reachable inside the network of the compose. The image
+is multi-arch (`linux/arm64` for the Ampere A1 of Oracle, `linux/amd64` for the others). Each container has a memory cap (app 400 MB, database
 256 MB) and the logs of Docker rotate, because the machine is small and shared.
 
 ### Once, on the VM
@@ -211,10 +211,10 @@ sudo mkdir -p /opt/promofilterbot && sudo chown $USER /opt/promofilterbot
 From your machine, send the `.env` (filled in from `.env.example`):
 
 ```sh
-scp -i <key>.pem .env ubuntu@<vm>:/opt/promofilterbot/.env
+scp -i <private key> .env ubuntu@<vm>:/opt/promofilterbot/.env
 ```
 
-With 1 GB of RAM shared with .ei, check `free -h` and add swap if there is none:
+If the VM has little RAM (the AMD micro has 1 GB, shared with .ei), check `free -h` and add swap if there is none:
 
 ```sh
 sudo fallocate -l 2G /swapfile && sudo chmod 600 /swapfile && sudo mkswap /swapfile && sudo swapon /swapfile
@@ -228,9 +228,9 @@ as .ei:
 
 | Secret | Value |
 | --- | --- |
-| `SSH_HOST` | public IP (or DNS) of the EC2 |
-| `SSH_USER` | `ubuntu` (Ubuntu) or `ec2-user` (Amazon Linux) |
-| `SSH_PRIVATE_KEY` | content of the `.pem` key |
+| `SSH_HOST` | public IP of the VM (Compute → Instances → the instance, in the Oracle console) |
+| `SSH_USER` | `ubuntu` (Ubuntu image) or `opc` (Oracle Linux), shown as Username on the same page |
+| `SSH_PRIVATE_KEY` | content of the private key that opens the VM (the one of the deploy of .ei works) |
 | `SSH_PORT` | optional, 22 |
 | `DEPLOY_DIR` | optional, `/opt/promofilterbot` |
 
@@ -246,7 +246,7 @@ A push to `main` or `develop` runs `.github/workflows/deploy.yml` (also by hand:
 ### After the first deploy: the login of the reader
 
 ```sh
-ssh -t -i <key>.pem ubuntu@<vm>
+ssh -t -i <private key> ubuntu@<vm>
 cd /opt/promofilterbot
 docker compose run --rm app --login   # the code Telegram sends to your app (and your 2FA password, if any)
 docker compose restart app

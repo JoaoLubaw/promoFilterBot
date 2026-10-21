@@ -16,6 +16,8 @@
 
 using System.Collections.Concurrent;
 using System.Net;
+using System.Text;
+using System.Text.RegularExpressions;
 
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
@@ -33,12 +35,20 @@ namespace PromoFilterBot.Infrastructure.Services;
 public sealed class ShortLinkResolver : IShortLinkResolver {
     private const int MaxRedirects = 6;
     private const int MaxCachedLinks = 5000;
+    private const int MaxAffiliatePageBytes = 256 * 1024;
+    private const int ReadChunkBytes = 16 * 1024;
 
     private static readonly string[] DefaultShortLinkHosts = [
-        "amzn.to", "a.co", "amzn.divulgador.link", "mercadolivre.com", "mercadolibre.com", "s.shopee.com.br", "shope.ee",
-        "magalu.lu", "tidd.ly", "bit.ly", "tinyurl.com", "cutt.ly", "is.gd", "encurtador.com.br", "s.click.aliexpress.com",
-        "a.aliexpress.com", "kbm.vc"
+        "amzn.to", "a.co", "amzn.divulgador.link", "amzlink.to", "mercadolivre.com", "mercadolibre.com", "meli.la",
+        "s.shopee.com.br", "shope.ee", "magalu.lu", "tidd.ly", "bit.ly", "tinyurl.com", "cutt.ly", "is.gd",
+        "encurtador.com.br", "s.click.aliexpress.com", "a.aliexpress.com", "kbm.vc"
     ];
+
+    // The meli.la of an affiliate ends in their "social" page of Mercado Livre, without the product in the address; the
+    // product of the post is the first card of the page (wid= in the page of a browser, item_id%3A in the one of a bot)
+    private static readonly Regex MercadoLivreFirstItem = new(
+        @"(?:item_id%3A|wid=)MLB(?<id>\d{6,})",
+        RegexOptions.CultureInvariant | RegexOptions.Compiled);
 
     private readonly HttpClient _httpClient;
     private readonly MatchingOptions _matchingOptions;
@@ -97,7 +107,15 @@ public sealed class ShortLinkResolver : IShortLinkResolver {
 
                 bool isRedirect = (int)response.StatusCode is >= 300 and < 400 && response.Headers.Location != null;
 
-                if (!isRedirect) break;
+                if (!isRedirect) {
+                    if (response.IsSuccessStatusCode && IsMercadoLivreAffiliatePage(current)) {
+                        string? itemId = await FindFirstMercadoLivreItemAsync(response, timeout.Token);
+
+                        if (itemId != null) return $"https://produto.mercadolivre.com.br/MLB-{itemId}";
+                    }
+
+                    break;
+                }
 
                 current = response.Headers.Location!.IsAbsoluteUri ? response.Headers.Location : new Uri(current, response.Headers.Location);
             }
@@ -110,5 +128,38 @@ public sealed class ShortLinkResolver : IShortLinkResolver {
             _logger.LogDebug(ex, "Short link {Link} could not be followed", link);
             return null;
         }
+    }
+
+    private static bool IsMercadoLivreAffiliatePage(Uri uri) {
+        return uri.Host.EndsWith("mercadolivre.com.br", StringComparison.OrdinalIgnoreCase)
+            && uri.AbsolutePath.StartsWith("/social/", StringComparison.OrdinalIgnoreCase);
+    }
+
+    // Reads the page only until the first card, which comes near the beginning
+    private static async Task<string?> FindFirstMercadoLivreItemAsync(HttpResponseMessage response, CancellationToken cancellationToken) {
+        await using Stream stream = await response.Content.ReadAsStreamAsync(cancellationToken);
+
+        byte[] buffer = new byte[MaxAffiliatePageBytes];
+        int total = 0;
+        int searchedUpTo = 0;
+
+        while (total < buffer.Length) {
+            int read = await stream.ReadAsync(buffer.AsMemory(total, Math.Min(ReadChunkBytes, buffer.Length - total)), cancellationToken);
+
+            if (read == 0) break;
+
+            total += read;
+
+            // Latin1 keeps one character per byte, so the search goes on from where it stopped (with a margin for a
+            // match split between two reads)
+            string page = Encoding.Latin1.GetString(buffer, 0, total);
+            Match match = MercadoLivreFirstItem.Match(page, Math.Max(0, searchedUpTo - 64));
+
+            if (match.Success) return match.Groups["id"].Value;
+
+            searchedUpTo = total;
+        }
+
+        return null;
     }
 }

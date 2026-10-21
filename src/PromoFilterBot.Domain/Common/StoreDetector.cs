@@ -28,11 +28,12 @@ public static class StoreDetector {
     private const RegexOptions Options = RegexOptions.IgnoreCase | RegexOptions.CultureInvariant | RegexOptions.Compiled;
 
     private static readonly StoreRule[] Stores = [
-        new StoreRule("amazon", new Regex(@"(^|\.)amazon\.|^(amzn\.to|amzn\.com|a\.co)$", Options), new Regex(@"\bamazon\b", Options)),
-        new StoreRule("mercadolivre", new Regex(@"(^|\.)mercadoli(vre|bre)\.", Options), new Regex(@"\bmercado ?livre\b", Options)),
-        new StoreRule("shopee", new Regex(@"(^|\.)shopee\.", Options), new Regex(@"\bshopee\b", Options)),
+        // The short links of each store tell the store too, even when they cannot be followed
+        new StoreRule("amazon", new Regex(@"(^|\.)amazon\.|^(amzn\.to|amzn\.com|a\.co|amzlink\.to|amzn\.divulgador\.link)$", Options), new Regex(@"\bamazon\b", Options)),
+        new StoreRule("mercadolivre", new Regex(@"(^|\.)mercadoli(vre|bre)\.|^meli\.la$", Options), new Regex(@"\bmercado ?livre\b", Options)),
+        new StoreRule("shopee", new Regex(@"(^|\.)shopee\.|^shope\.ee$", Options), new Regex(@"\bshopee\b", Options)),
         new StoreRule("magalu", new Regex(@"(^|\.)(magazineluiza|magazinevoce|magalu)\.", Options), new Regex(@"\bmagalu\b|\bmagazine luiza\b", Options)),
-        new StoreRule("kabum", new Regex(@"(^|\.)kabum\.", Options), new Regex(@"\bkabum\b", Options)),
+        new StoreRule("kabum", new Regex(@"(^|\.)kabum\.|^kbm\.vc$", Options), new Regex(@"\bkabum\b", Options)),
         new StoreRule("aliexpress", new Regex(@"(^|\.)aliexpress\.", Options), new Regex(@"\baliexpress\b", Options)),
         new StoreRule("americanas", new Regex(@"(^|\.)americanas\.", Options), new Regex(@"\bamericanas\b", Options)),
         new StoreRule("casasbahia", new Regex(@"(^|\.)casasbahia\.", Options), new Regex(@"\bcasas bahia\b", Options)),
